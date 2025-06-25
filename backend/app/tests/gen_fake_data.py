@@ -11,6 +11,7 @@ from app.models.database import (
     Question,
     Option,
     QuizAttempt,
+    Chapter,
     UserAnswer,
     init_db,
 )
@@ -82,14 +83,39 @@ def create_fake_subjects(count=5):
 
 
 @orm.db_session
+def create_fake_chapters(count=5):
+    """Create fake subjects linked to random users"""
+    print(f"Creating {count} fake subjects...")
+    chapters = []
+    subjects = orm.select(sub for sub in Subject)[:]
+
+    for sub in subjects:
+        for _ in range(count):
+            try:
+                chapter = Chapter(
+                    title=fake.catch_phrase(),
+                    description=fake.paragraph(),
+                    subject=random.choice(subjects),
+                    is_deleted=fake.boolean(
+                        chance_of_getting_true=5
+                    ),  # 5% chance of being deleted
+                )
+                chapters.append(chapter)
+            except Exception as e:
+                print(f"Error creating subject: {e}")
+
+    return chapters
+
+
+@orm.db_session
 def create_fake_quizzes(count=30):
     """Create fake quizzes linked to random subjects"""
     print(f"Creating {count} fake quizzes...")
     quizzes = []
 
     # Get all active subjects
-    subjects = list(Subject.select(lambda s: not s.is_deleted))
-    if not subjects:
+    chapters = list(Chapter.select(lambda s: not s.is_deleted))
+    if not chapters:
         print("No active subjects found. Creating quizzes failed.")
         return quizzes
 
@@ -101,7 +127,7 @@ def create_fake_quizzes(count=30):
             attempts_allowed = random.randint(1, 5)  # 1 to 5 attempts allowed
 
             # Start time must be in the future relative to creation time
-            start_time = datetime.now() - timedelta(days=random.randint(1, 30))
+            start_time = datetime.now() + timedelta(days=random.randint(1, 30))
 
             quiz = Quiz(
                 title=fake.sentence(nb_words=4),
@@ -109,7 +135,7 @@ def create_fake_quizzes(count=30):
                 duration=duration,
                 start_datetime=start_time,
                 created_at=start_time - timedelta(days=2),
-                subject=random.choice(subjects),
+                chapter=random.choice(chapters),
                 is_deleted=fake.boolean(
                     chance_of_getting_true=5
                 ),  # 5% chance of being deleted
@@ -361,6 +387,9 @@ def generate_fake_data():
         # Create fake data
         users = create_fake_users(15)
         subjects = create_fake_subjects(30)
+        chapters = create_fake_chapters()
+
+        orm.flush()
         quizzes = create_fake_quizzes(50)
 
         # Commit transaction to ensure IDs are generated

@@ -4,7 +4,15 @@ from pony import orm
 from marshmallow import ValidationError
 import json
 
-from app.models.database import Quiz, QuizAttempt, Question, Option, UserAnswer, User
+from app.models.database import (
+    Quiz,
+    QuizAttempt,
+    Question,
+    Option,
+    UserAnswer,
+    User,
+    Chapter,
+)
 from app.routes.exceptions import (
     APIException,
     QuizAttemptException,
@@ -27,8 +35,11 @@ def verify_jwt_token():
     token = get_token_from_header(dict(request.headers))
     user = get_user_by_token(token)
 
+    if user.is_admin:
+        return jsonify({"message": "admins arent allowed on user routes"}), 400
+
     if user.is_deleted or user.is_banned:
-        return jsonify({"message": "invalid credentials"}), 400
+        return jsonify({"message": "invalid user"}), 400
     else:
         g.current_user: User = user
 
@@ -37,12 +48,19 @@ def verify_jwt_token():
 @orm.db_session
 def user_quiz():
     results = []
-    user_subjects = orm.select(sub for sub in g.current_user.subjects)
-    all_quiz = orm.select(
-        q for q in Quiz if not q.is_deleted and q.subject in user_subjects
+    user_subjects = orm.select(
+        sub for sub in g.current_user.subjects if not sub.is_deleted
     )
+    user_chapters = orm.select(
+        chap for chap in Chapter if chap.subject in user_subjects
+    )
+    user_quizzes = orm.select(
+        quiz
+        for quiz in Quiz
+        if (quiz.chapter in user_chapters) and quiz.start_datetime > datetime.now()
+    ).sort_by(Quiz.start_datetime)
 
-    for quiz in all_quiz:
+    for quiz in user_quizzes:
         quiz_data = {
             "id": quiz.id,
             "title": quiz.title,
@@ -51,7 +69,8 @@ def user_quiz():
             "start_datetime": quiz.start_datetime.timestamp(),
             "total_questions": quiz.total_questions,
             "total_marks": quiz.total_marks,
-            "subject_title": quiz.subject.title,  # Access the subject title
+            "chapter_title": quiz.chapter.title,
+            "subject_title": quiz.chapter.subject.title,  # Access the subject title
         }
         results.append(quiz_data)
 
@@ -71,7 +90,8 @@ def user_scores():
         quiz_attempt_data = {
             "id": quiz_attempt.id,
             "quiz_title": quiz_attempt.quiz.title,
-            "subject_title": quiz_attempt.quiz.subject.title,
+            "subject_title": quiz_attempt.quiz.chapter.subject.title,
+            "chapter_title": quiz_attempt.quiz.chapter.title,
             "quiz_total_marks": quiz_attempt.quiz.total_marks,
             "score": quiz_attempt.score,
             "percentage_score": quiz_attempt.percentage_score,

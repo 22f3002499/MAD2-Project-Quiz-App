@@ -52,7 +52,12 @@ async function submit(formData) {
   try {
     const response = await post("/auth/login/", formData);
     auth.setToken(response);
-    router.push({ path: "/" });
+
+    if (auth.userRole === "user") {
+      router.push({ path: "/" });
+    } else if (auth.userRole === "admin") {
+      router.push({ path: "/admin/" });
+    }
   } catch (err) {
     console.log(err);
   }

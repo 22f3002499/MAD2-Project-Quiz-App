@@ -33,12 +33,14 @@ const formatDateTime = (value) => {
 const fields = [
   { key: "title" },
   { key: "subject_title", label: "Subject" },
+  { key: "chapter_title", label: "Chapter" },
   { key: "description" },
   { key: "duration", label: "Duration (in mins)" },
   {
     key: "start_datetime",
     label: "Quiz Begins At",
     formatter: formatDateTime,
+    sortable: true,
   },
   { key: "total_questions" },
   { key: "total_marks" },
@@ -51,6 +53,6 @@ const fields = [
 const isStartDisabled = (quizStartDatetime) => {
   const quizStartDate = new Date(quizStartDatetime * 1000);
   const currentDate = new Date();
-  return currentDate <= quizStartDate;
+  return quizStartDate >= currentDate;
 };
 </script>

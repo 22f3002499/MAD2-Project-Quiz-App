@@ -27,6 +27,7 @@ class User(db.Entity):
     is_deleted = orm.Required(bool, default=False)
     is_banned = orm.Required(bool, default=False)
     created_at = orm.Required(datetime, default=lambda: datetime.now())
+
     subjects = orm.Set("Subject")
     quiz_attempts = orm.Set("QuizAttempt")
 
@@ -45,10 +46,30 @@ class Subject(db.Entity):
     is_deleted = orm.Required(bool, default=False)
     user = orm.Set(User)
     created_at = orm.Required(datetime, default=lambda: datetime.now())
+
+    chapters = orm.Set("Chapter")
+
+    def soft_delete(self):
+        self.is_deleted = True
+        for chapter in self.chapters:
+            chapter.soft_delete()
+
+
+class Chapter(db.Entity):
+    _table_ = "chapter"
+    id = orm.PrimaryKey(int, auto=True)
+    title = orm.Required(str)
+    description = orm.Optional(str, default="")
+    is_deleted = orm.Required(bool, default=False)
+    created_at = orm.Required(datetime, default=lambda: datetime.now())
+
+    subject = orm.Required(Subject)
     quizzes = orm.Set("Quiz")
 
     def soft_delete(self):
         self.is_deleted = True
+        for quiz in self.quizzes:
+            quiz.soft_delete()
 
 
 class Quiz(db.Entity):
@@ -59,7 +80,6 @@ class Quiz(db.Entity):
     duration = orm.Required(int)  # Duration in minutes
     start_datetime = orm.Required(datetime)
     created_at = orm.Required(datetime, default=lambda: datetime.now())
-    subject = orm.Required(Subject)
     is_deleted = orm.Required(bool, default=False)
     total_questions = orm.Required(int, default=1)
     total_marks = orm.Required(int, default=0)
@@ -68,6 +88,7 @@ class Quiz(db.Entity):
 
     questions = orm.Set("Question")
     quiz_attempts = orm.Set("QuizAttempt")
+    chapter = orm.Required(Chapter)
 
     def before_insert(self):
         if self.duration <= 0:
@@ -86,13 +107,13 @@ class Quiz(db.Entity):
             raise ValueError(
                 f"Cannot decrease the limit of total_questions. Quiz has currently {question_count} active questions."
             )
-        if self.start_datetime > datetime.now():
+        if self.start_datetime < datetime.now():
             raise ValueError(f"The quiz cannot be updated after it has started.")
 
     def soft_delete(self):
         self.is_deleted = True
         for qa in self.quiz_attempts:
-            qa.is_deleted = True
+            qa.soft_delete()
 
 
 class Question(db.Entity):

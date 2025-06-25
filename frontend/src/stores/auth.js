@@ -1,8 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { jwtDecode } from 'jwt-decode' 
+import { useApi } from '@/composables/useApi'
+import { useRouter } from 'vue-router'
 
 export const useAuthStore = defineStore('auth', () => {
+  
   const token = ref(localStorage.getItem('token') || null)
   const userDetails = computed(() => {
     if (!token.value) return null
@@ -26,6 +29,7 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = null
     localStorage.removeItem('token')
   }
+
   
-  return { token, userDetails, isAuthenticated, userRole, hasRole, hasAnyRole, setToken, logout }
+  return { token, userDetails, isAuthenticated, userRole, hasRole, hasAnyRole, setToken, logout}
 })
