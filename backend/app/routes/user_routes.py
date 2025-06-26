@@ -12,6 +12,7 @@ from app.models.database import (
     UserAnswer,
     User,
     Chapter,
+    Subject,
 )
 from app.routes.exceptions import (
     APIException,
@@ -94,6 +95,7 @@ def user_scores():
             "chapter_title": quiz_attempt.quiz.chapter.title,
             "quiz_total_marks": quiz_attempt.quiz.total_marks,
             "score": quiz_attempt.score,
+            "passing_percentage": quiz_attempt.quiz.passing_percentage,
             "percentage_score": quiz_attempt.percentage_score,
             "submit_datetime": quiz_attempt.submit_datetime.timestamp(),
         }
@@ -260,8 +262,103 @@ def user_submit_quiz(quiz_id: int):
 
 
 @user_blueprint.get("/stats/")
+@orm.db_session
 def user_stats():
-    return None
+    quiz_attempts = orm.select(
+        qa for qa in QuizAttempt if qa.user == g.current_user and not qa.is_deleted
+    )
+
+    if not quiz_attempts[:]:
+        return jsonify(
+            {
+                "total_attempts": 0,
+                "average_score": 0,
+                "pass_rate": 0,
+                "total_subjects": 0,
+                "recent_attempts": [],
+                "subject_wise_stats": [],
+            }
+        )
+
+    total_attempts = len(quiz_attempts)
+    total_score = orm.sum(qa.score for qa in quiz_attempts)
+    average_score = round(total_score / total_attempts, 2)
+
+    passed_attempts = orm.count(
+        qa for qa in quiz_attempts if qa.percentage_score >= qa.quiz.passing_percentage
+    )
+    pass_rate = round((passed_attempts / total_attempts) * 100, 2)
+
+    # Subject-wise statistics
+    subject_stats = {}
+    for attempt in quiz_attempts:
+        subject = attempt.quiz.chapter.subject
+        subject_name = subject.title
+
+        if subject_name not in subject_stats:
+            subject_stats[subject_name] = {
+                "subject_name": subject_name,
+                "attempts": 0,
+                "total_score": 0,
+                "passed": 0,
+            }
+
+        subject_stats[subject_name]["attempts"] += 1
+        subject_stats[subject_name]["total_score"] += attempt.score
+        if attempt.percentage_score >= attempt.quiz.passing_percentage:
+            subject_stats[subject_name]["passed"] += 1
+
+    # Calculate averages and pass rates for subjects
+    subject_wise_stats = []
+    for subject_name, stats in subject_stats.items():
+        avg_score = round(stats["total_score"] / stats["attempts"], 2)
+        subject_pass_rate = round((stats["passed"] / stats["attempts"]) * 100, 2)
+
+        subject_wise_stats.append(
+            {
+                "subject_name": subject_name,
+                "attempts": stats["attempts"],
+                "average_score": avg_score,
+                "pass_rate": subject_pass_rate,
+            }
+        )
+
+    # Sort by number of attempts (descending)
+    subject_wise_stats.sort(key=lambda x: x["attempts"], reverse=True)
+
+    # Recent attempts (last 5)
+    recent_attempts_query = (
+        orm.select(
+            qa for qa in QuizAttempt if qa.user == g.current_user and not qa.is_deleted
+        )
+        .order_by(orm.desc(QuizAttempt.submit_datetime))
+        .limit(5)
+    )
+
+    recent_attempts = []
+    for attempt in recent_attempts_query:
+        recent_attempts.append(
+            {
+                "quiz_title": attempt.quiz.title,
+                "subject": attempt.quiz.chapter.subject.title,
+                "score": round(attempt.score, 2),
+                "total_marks": attempt.quiz.total_marks,
+                "percentage": round(attempt.percentage_score, 2),
+                "passed": attempt.percentage_score >= attempt.quiz.passing_percentage,
+                "date": attempt.submit_datetime.strftime("%Y-%m-%d %H:%M"),
+            }
+        )
+
+    return jsonify(
+        {
+            "total_attempts": total_attempts,
+            "average_score": average_score,
+            "pass_rate": pass_rate,
+            "total_subjects": len(subject_wise_stats),
+            "recent_attempts": recent_attempts,
+            "subject_wise_stats": subject_wise_stats,
+        }
+    )
 
 
 # ERROR HANDLING

@@ -264,9 +264,7 @@ def create_fake_quiz_attempts():
 
     # Get quizzes that have started
     current_time = datetime.now()
-    past_quizzes = list(
-        Quiz.select(lambda q: not q.is_deleted and q.start_datetime < current_time)
-    )
+    past_quizzes = list(Quiz.select(lambda q: not q.is_deleted))
 
     for quiz in past_quizzes:
         eligible_users = random.sample(
