@@ -5,20 +5,23 @@ export function useToast(){
   const {create} = useToastController()
   
   const createToast = (title , content , variant,iconString) => {
+
     create({
-      variant:variant,
-      position:"bottom-end",
-      body:content,
-      bodyClass:"fw-bold",
-      modelValue:7000,
-      slots:{
-        title:({hide}) => [
-          h('div' , {class:"fw-bold"} , [
-            h('i' , {class:`bi bi-${iconString} me-2`}),
+      variant: variant,
+      position: "bottom-end",
+      modelValue: 7000,
+      slots: {
+        title: ({ hide }) => [
+          h('div', { class: "fw-bold" }, [
+            h('i', { class: `bi bi-${iconString} me-2` }),
             title
-          ])        ]
+          ])
+        ],
+        default: () => h('pre', { 
+          class: "mb-0 text-wrap text-break lh-base"
+        }, content)
       }
-    } , {resolveOnHide:true})
+    }, { resolveOnHide: true });
   }
 
   const createErrorToast = (title,content) => {

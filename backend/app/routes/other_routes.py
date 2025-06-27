@@ -13,7 +13,7 @@ other_routes_blueprint = Blueprint(
 def get_subjects():
     all_subjects = orm.select(sub for sub in Subject if not sub.is_deleted)
     result = [
-        {"id": sub.id, "title": sub.title, "desc": sub.description}
+        {"id": sub.id, "title": sub.title, "description": sub.description}
         for sub in all_subjects
     ]
 

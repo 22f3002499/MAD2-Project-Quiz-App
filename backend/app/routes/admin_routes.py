@@ -11,6 +11,7 @@ from app.models.database import (
     UserAnswer,
     User,
     Subject,
+    Chapter,
 )
 from app.routes.exceptions import (
     APIException,
@@ -27,20 +28,15 @@ from app.utils import (
 
 admin_blueprint = Blueprint("admin_blueprint", __name__, url_prefix="/admin")
 
-RESOURCE_MAP = {
-    "quiz": Quiz,
-    "subject": Subject,
-    "question": Question,
-    "option": Option,
-}
-
 
 @admin_blueprint.before_request
 def verify_jwt_token():
+    if request.method == "OPTIONS":
+        return
     token = get_token_from_header(dict(request.headers))
     user = get_user_by_token(token)
     if user.is_admin == False:
-        return AuthenticationException(message="missing admin role")
+        raise AuthenticationException(message="missing admin role")
 
     g.current_user: User = user
 
@@ -73,13 +69,33 @@ def admin_home(page_num):
     return jsonify(results), 200
 
 
+@admin_blueprint.get("/chapters/<int:subject_id>/")
+@orm.db_session
+def get_chapters(subject_id: int):
+    results = []
+
+    all_chapters = orm.select(
+        chap
+        for chap in Chapter
+        if chap.subject.id == subject_id and not chap.is_deleted
+    )
+
+    for chap in all_chapters:
+        chap_data = {
+            "id": chap.id,
+            "title": chap.title,
+            "description": chap.description,
+        }
+        results.append(chap_data)
+
+    return jsonify(results), 200
+
+
 # assumes correct data is being sent from frontend
 @admin_blueprint.post("/create/<string:resource>/")
 @orm.db_session
 def create_resource(resource: str):
     data = request.get_json()
-    if resource not in RESOURCE_MAP.keys():
-        raise ResourceException()
 
     if resource == "quiz":
         subject_id = (
@@ -90,6 +106,17 @@ def create_resource(resource: str):
         new_quiz = Quiz(**quiz_data)
         orm.flush()
 
+    elif resource == "chapter":
+        subject_id = request.args.get("subject_id")
+        if not Subject.exists(id=subject_id):
+            raise ResourceNotFoundException()
+
+        sub = Subject.get(id=subject_id)
+        new_chapter = Chapter(
+            title=data.get("title"), description=data.get("description"), subject=sub
+        )
+        orm.flush()
+
     return jsonify(f"new {resource} created"), 201
 
 
@@ -98,8 +125,6 @@ def create_resource(resource: str):
 @orm.db_session
 def edit_resource(resource: str, id: int):
     data = request.get_json()
-    if resource not in RESOURCE_MAP.keys():
-        raise ResourceException()
 
     if resource == "quiz":
         subject_found = False
@@ -112,10 +137,15 @@ def edit_resource(resource: str, id: int):
         if not subject_found:
             quiz.set(**data)
 
-    # model_class = RESOURCE_MAP[resource]
-    # model_resource = model_class.get(id=id)
+    elif resource == "chapter":
+        chapter_id = request.args.get("chapter_id")
 
-    # model_resource.set(**data)
+        if not Chapter.exists(id=chapter_id):
+            raise ResourceNotFoundException()
+
+        chapter = Chapter.get(id=chapter_id)
+        chapter.set(**data)
+
     return jsonify({"message": f"made changes to {resource}"}), 200
 
 

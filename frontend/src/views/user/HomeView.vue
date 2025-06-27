@@ -1,6 +1,6 @@
 <template>
-  <h2 class="fw-bold text-center mt-4">Upcoming Quizzes</h2>
-  <BContainer style="max-width: 70vw; max-height: 70vh" class="mt-3">
+  <h2 class="fw-bold text-center mt-5">Upcoming Quizzes</h2>
+  <BContainer style="max-width: 70vw; max-height: 70vh" class="mt-4">
     <BCard class="mb-4 p-2">
       <SearchBar
         :items="store.userQuizzes"

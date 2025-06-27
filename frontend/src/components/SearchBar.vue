@@ -1,6 +1,6 @@
 <template>
   <BRow>
-    <BCol cols="8">
+    <BCol>
       <BInputGroup size="lg">
         <BInputGroupText><i class="bi bi-search"></i></BInputGroupText>
         <BFormInput v-model="searchQuery" :placeholder="placeholder" />
@@ -15,7 +15,7 @@
       />
     </BCol>
 
-    <BCol>
+    <BCol v-if="sortByFields.length > 0">
       <BFormSelect
         v-model="selectedSortOrder"
         :options="[

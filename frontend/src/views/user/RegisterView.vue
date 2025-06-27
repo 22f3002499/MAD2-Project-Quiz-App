@@ -1,13 +1,13 @@
 <template>
-  <div
-    class="d-flex justify-content-center align-items-center flex-column"
-    style="height: 80vh"
+  <BContainer
+    class="d-flex justify-content-center align-items-center"
+    style="min-height: 90vh; padding: 20px 0"
   >
     <Form
       :validation-schema="registrationSchema"
       class="card p-5"
       @submit="submit"
-      style="width: 500px"
+      style="width: 500px; max-width: 90vw"
     >
       <div class="mb-3">
         <div class="input-group">
@@ -36,7 +36,6 @@
         </div>
         <ErrorMessage name="password" class="text-danger mt-1"></ErrorMessage>
       </div>
-
       <div class="mb-3">
         <div class="input-group">
           <label for="confirmPassword" class="input-group-text fw-bold"
@@ -53,7 +52,6 @@
           class="text-danger mt-1"
         ></ErrorMessage>
       </div>
-
       <div class="mb-3">
         <div class="input-group">
           <label for="dob" class="input-group-text fw-bold">D.O.B.</label>
@@ -61,37 +59,40 @@
         </div>
         <ErrorMessage name="dob" class="text-danger mt-1"></ErrorMessage>
       </div>
-
       <div class="mb-3">
         <label class="form-label fw-bold">Subjects</label>
         <div
-          v-for="subject in subjectStore.allSubjects"
-          :key="subject.id"
-          class="form-check"
+          class="border rounded p-2 overflow-y-auto"
+          style="max-height: 200px; background-color: #f8f9fa"
         >
-          <Field
-            name="subjects"
-            type="checkbox"
-            :value="subject.id"
-            class="form-check-input"
-            :id="`subject-${subject.id}`"
-          />
-          <label
-            class="form-check-label"
-            :for="`subject-${subject.id}`"
-            v-b-tooltip.hover.right="subject.desc"
+          <div
+            v-for="subject in subjectStore.allSubjects"
+            :key="subject.id"
+            class="form-check"
           >
-            {{ subject.title }}
-          </label>
+            <Field
+              name="subjects"
+              type="checkbox"
+              :value="subject.id"
+              class="form-check-input"
+              :id="`subject-${subject.id}`"
+            />
+            <label
+              class="form-check-label"
+              :for="`subject-${subject.id}`"
+              v-b-tooltip.hover.right="subject.desc"
+            >
+              {{ subject.title }}
+            </label>
+          </div>
         </div>
         <ErrorMessage name="subjects" class="text-danger mt-1"></ErrorMessage>
       </div>
-
       <button type="submit" class="btn btn-primary w-100" :disabled="isLoading">
         {{ isLoading ? "Registering..." : "Register" }}
       </button>
     </Form>
-  </div>
+  </BContainer>
 </template>
 
 <script setup>
