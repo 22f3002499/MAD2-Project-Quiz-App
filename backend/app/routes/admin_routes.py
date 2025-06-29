@@ -138,15 +138,20 @@ def edit_resource(resource: str, id: int):
             quiz.set(**data)
 
     elif resource == "chapter":
-        chapter_id = request.args.get("chapter_id")
-
-        if not Chapter.exists(id=chapter_id):
+        if not Chapter.exists(id=id):
             raise ResourceNotFoundException()
 
-        chapter = Chapter.get(id=chapter_id)
+        chapter = Chapter.get(id=id)
         chapter.set(**data)
 
-    return jsonify({"message": f"made changes to {resource}"}), 200
+    elif resource == "subject":
+        if not Subject.exists(id=id):
+            raise ResourceNotFoundException()
+
+        subject = Subject.get(id=id)
+        subject.set(**data)
+
+    return jsonify({"message": f"Changed {resource}"}), 200
 
 
 # sends a pair of dicts ; quiz_info and quiz_stats as list

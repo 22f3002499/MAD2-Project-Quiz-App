@@ -18,7 +18,12 @@
         <p>{{ chap.description }}</p>
 
         <template #footer>
-          <BButton variant="warning" size="sm" class="me-2"
+          <BButton
+            variant="warning"
+            size="sm"
+            class="me-2"
+            v-b-modal.edit-chapter
+            @click="currentChapterId = chap.id"
             >Edit Chapter</BButton
           >
           <BButton variant="danger" size="sm" @click="removeChapter(chap.id)"
@@ -28,17 +33,37 @@
       </BCard>
     </BCol>
   </BRow>
+
+  <FormModal
+    id="edit-chapter"
+    title="Edit Chapter"
+    header-variant="warning"
+    @submit="handleEditChapterSubmit"
+    :formSchema="chapterSchema"
+    :initialData="store.getChapterById(currentChapterId)"
+  >
+    <ChapterForm />
+  </FormModal>
 </template>
 
 <script setup>
 import { useChapterStore } from "@/stores/dbChapterStore";
+import { ref } from "vue";
+import ChapterForm from "./ChapterForm.vue";
+import FormModal from "@/components/FormModal.vue";
+import { chapterSchema } from "@/utils/formSchemas";
 
 const store = useChapterStore();
-
 const emit = defineEmits(["refetchChapters"]);
 
 const removeChapter = (chapterId) => {
   store.removeChapter(chapterId);
+  emit("refetchChapters");
+};
+
+const currentChapterId = ref(null);
+const handleEditChapterSubmit = async (formData) => {
+  await store.editChapter(currentChapterId.value, formData);
   emit("refetchChapters");
 };
 </script>

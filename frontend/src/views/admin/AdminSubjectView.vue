@@ -24,6 +24,7 @@
           <p>{{ sub.description }}</p>
 
           <template #footer>
+            <!-- VIEW CHAPTER -->
             <BButton
               variant="primary"
               size="sm"
@@ -37,18 +38,35 @@
               "
               >View Chapters</BButton
             >
+            <!-- ADD CHAPTER -->
             <BButton
               variant="success"
               size="sm"
               class="me-2"
-              v-b-modal.add-chapter
+              v-b-modal.create-chapter
               @click="currentSubjectId = sub.id"
               >Add Chapter</BButton
             >
-            <BButton variant="warning" size="sm" class="me-2"
+            <!-- EDIT SUBJECT -->
+            <BButton
+              variant="warning"
+              size="sm"
+              class="me-2"
+              v-b-modal.edit-subject
+              @click="currentSubjectId = sub.id"
               >Edit Subject</BButton
             >
-            <BButton variant="danger" size="sm" class="me-2"
+            <!-- REMOVE SUBJECT -->
+            <BButton
+              variant="danger"
+              size="sm"
+              class="me-2"
+              @click="
+                () => {
+                  subjectStore.removeSubject(sub.id);
+                  subjectStore.fetchSubjects();
+                }
+              "
               >Remove Subject</BButton
             >
           </template>
@@ -65,52 +83,56 @@
     size="xl"
     header-variant="primary"
   >
-    <ChapterCards />
+    <ChapterCards
+      @refetchChapters="chapterStore.fetchChapters(currentSubjectId)"
+    />
   </BModal>
 
-  <BModal
-    id="add-chapter"
-    scrollable
-    title="Add Chapter"
-    size="lg"
+  <FormModal
+    id="create-chapter"
+    title="Create Chapter"
     header-variant="success"
-    ref="addChapterModalRef"
+    @submit="handleCreateChapterSubmit"
+    :formSchema="chapterSchema"
   >
-    <AddChapterForm ref="addChapterFormRef" />
-    <template #footer="{ ok, cancel }">
-      <BButton variant="danger" @click="cancel">Cancel</BButton>
-      <BButton variant="success" @click="handleAddChapterSubmit"
-        >Submit</BButton
-      >
-    </template>
-  </BModal>
+    <ChapterForm />
+  </FormModal>
+
+  <FormModal
+    id="edit-subject"
+    title="Edit Subject"
+    header-variant="warning"
+    @submit="handleEditSubjectSubmit"
+    :initialData="subjectStore.getSubjectById(currentSubjectId)"
+    :formSchema="subjectSchema"
+  >
+    <SubjectForm />
+  </FormModal>
 </template>
 
 <script setup>
 import { onBeforeMount, ref } from "vue";
 import { useSubjectStore } from "@/stores/dbSubjectStore";
 import { useChapterStore } from "@/stores/dbChapterStore";
+
 import ChapterCards from "@/components/admin/ChapterCards.vue";
-import AddChapterForm from "@/components/admin/AddChapterForm.vue";
+import ChapterForm from "@/components/admin/ChapterForm.vue";
+import FormModal from "@/components/FormModal.vue";
+import { subjectSchema, chapterSchema } from "@/utils/formSchemas";
 
 const subjectStore = useSubjectStore();
 const chapterStore = useChapterStore();
+const currentSubjectId = ref();
 
 onBeforeMount(async () => {
   await subjectStore.fetchSubjects();
 });
 
-const addChapterFormRef = ref();
-const addChapterModalRef = ref();
-const currentSubjectId = ref();
+const handleCreateChapterSubmit = async (formData) => {
+  await chapterStore.createChapter(currentSubjectId.value, formData);
+};
 
-const handleAddChapterSubmit = async () => {
-  const formValid = await addChapterFormRef.value.submitForm(
-    currentSubjectId.value,
-  );
-  if (formValid) {
-    addChapterModalRef.value.hide();
-    addChapterFormRef.value.resetForm();
-  }
+const handleEditSubjectSubmit = async (formData) => {
+  await subjectStore.editSubject(currentSubjectId.value, formData);
 };
 </script>
