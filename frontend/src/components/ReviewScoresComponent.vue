@@ -17,7 +17,11 @@
               </div>
             </div>
             <p v-if="ques.description">{{ ques.description }}</p>
-            <img :src="ques.image" alt="No image found" v-if="ques.image" />
+            <BImg
+              :src="`data:image/png;base64,${ques.image}`"
+              alt="No image found"
+              v-if="ques.image"
+            />
           </BCol>
         </BRow>
 
@@ -38,7 +42,12 @@
               </div>
 
               <p v-if="opt.description">{{ opt.description }}</p>
-              <img :src="opt.image" alt="No image found" v-if="opt.image" />
+              <BImg
+                :src="`data:image/png;base64,${opt.image}`"
+                alt="No image found"
+                fluid
+                v-if="opt.image"
+              />
             </BCard>
           </BCol>
         </BRow>

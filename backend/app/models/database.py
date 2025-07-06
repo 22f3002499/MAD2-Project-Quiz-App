@@ -81,8 +81,8 @@ class Quiz(db.Entity):
     start_datetime = orm.Required(datetime)
     created_at = orm.Required(datetime, default=lambda: datetime.now())
     is_deleted = orm.Required(bool, default=False)
-    total_questions = orm.Required(int, default=1)
-    total_marks = orm.Required(int, default=0)
+    # total_questions = orm.Required(int, default=1)
+    # total_marks = orm.Required(int, default=0)
     attempts_allowed = orm.Required(int, default=1)
     passing_percentage = orm.Optional(float, default=33.0)
 
@@ -90,23 +90,29 @@ class Quiz(db.Entity):
     quiz_attempts = orm.Set("QuizAttempt")
     chapter = orm.Required(Chapter)
 
+    @property
+    def total_questions(self):
+        return orm.count(q for q in self.questions if not q.is_deleted)
+
+    @property
+    def total_marks(self):
+        return orm.sum(q.marks for q in self.questions if not q.is_deleted)
+
     def before_insert(self):
         if self.duration <= 0:
             raise ValueError("Duration must be greater than 0")
-        if self.total_questions <= 0:
-            raise ValueError("Total questions must be greater than 0")
         if self.start_datetime <= self.created_at:
             raise ValueError("Start datetime must be after creation time")
 
     # verify quiz total_questions limit
     def before_update(self):
-        question_count = orm.count(
-            ques for ques in Question if ques.quiz == self and not ques.is_deleted
-        )
-        if question_count > self.total_questions:
-            raise ValueError(
-                f"Cannot decrease the limit of total_questions. Quiz has currently {question_count} active questions."
-            )
+        # question_count = orm.count(
+        #     ques for ques in Question if ques.quiz == self and not ques.is_deleted
+        # )
+        # if question_count > self.total_questions:
+        #     raise ValueError(
+        #         f"Cannot decrease the limit of total_questions. Quiz has currently {question_count} active questions."
+        #     )
         if self.start_datetime < datetime.now():
             raise ValueError(f"The quiz cannot be updated after it has started.")
 
@@ -121,19 +127,20 @@ class Question(db.Entity):
     id = orm.PrimaryKey(int, auto=True)
     title = orm.Required(str)
     description = orm.Optional(str, default="")
-    image = orm.Optional(bytes)
-    quiz = orm.Required(Quiz)
+    _image = orm.Optional(bytes)
     marks = orm.Required(int, default=0)
     is_deleted = orm.Required(bool, default=False)
-    type = orm.Required(bool, default=False)  # False=MCQ, True=MSQ
+    _type = orm.Required(bool, default=False)  # False=MCQ, True=MSQ
     created_at = orm.Required(datetime, default=lambda: datetime.now())
 
+    quiz = orm.Required(Quiz)
     options = orm.Set("Option")
     user_answers = orm.Set("UserAnswer")
 
     # True = MSQ , False = MCQ
-    def get_type(self) -> str:
-        if self.type:
+    @property
+    def type(self) -> str:
+        if self._type:
             return "MSQ"
         return "MCQ"
 
@@ -142,9 +149,10 @@ class Question(db.Entity):
         for opt in self.options:
             opt.is_deleted = True
 
-    def get_encoded_image(self):
-        if self.image:
-            return b64encode(self.image).decode("utf-8")
+    @property
+    def image(self):
+        if self._image:
+            return b64encode(self._image).decode("utf-8")
         return None
 
     def before_insert(self):
@@ -152,54 +160,54 @@ class Question(db.Entity):
             raise ValueError("Marks must be greater than or equal to 0")
 
         # verify quiz total_questions limit
-        question_count = orm.count(
-            ques for ques in Question if ques.quiz == self.quiz and not ques.is_deleted
-        )
-        if question_count >= self.quiz.total_questions:
-            raise ValueError(
-                "Cannot add more questions than the quiz total_questions limit"
-            )
+        # question_count = orm.count(
+        #     ques for ques in Question if ques.quiz == self.quiz and not ques.is_deleted
+        # )
+        # if question_count >= self.quiz.total_questions:
+        #     raise ValueError(
+        #         "Cannot add more questions than the quiz total_questions limit"
+        #     )
 
-    def after_insert(self):
-        # Update quiz total marks
+    # def after_insert(self):
+    #     # Update quiz total marks
 
-        total_marks = orm.sum(
-            ques.marks
-            for ques in Question
-            if ques.quiz == self.quiz and not ques.is_deleted
-        )
-        self.quiz.total_marks = total_marks
+    #     total_marks = orm.sum(
+    #         ques.marks
+    #         for ques in Question
+    #         if ques.quiz == self.quiz and not ques.is_deleted
+    #     )
+    #     self.quiz.total_marks = total_marks
 
-    def before_update(self):
-        # verify quiz total_questions limit when changing quiz
-        old_question_quiz = self._dbvals_.get(Question.quiz)
-        new_question_quiz = self.quiz
+    # def before_update(self):
+    #     # verify quiz total_questions limit when changing quiz
+    #     old_question_quiz = self._dbvals_.get(Question.quiz)
+    #     new_question_quiz = self.quiz
 
-        if old_question_quiz != new_question_quiz:
+    #     if old_question_quiz != new_question_quiz:
 
-            question_count = orm.count(
-                ques
-                for ques in Question
-                if ques.quiz == self.quiz and not ques.is_deleted
-            )
-            if question_count >= self.quiz.total_questions:
-                raise ValueError(
-                    "Cannot add more questions than the quiz total_questions limit"
-                )
+    #         question_count = orm.count(
+    #             ques
+    #             for ques in Question
+    #             if ques.quiz == self.quiz and not ques.is_deleted
+    #         )
+    # if question_count >= self.quiz.total_questions:
+    #     raise ValueError(
+    #         "Cannot add more questions than the quiz total_questions limit"
+    #     )
 
-        # update total_marks of new quiz
-        self.quiz.total_marks = orm.sum(
-            ques.marks
-            for ques in Question
-            if ques.quiz == self.quiz and not ques.is_deleted
-        )
+    # # update total_marks of new quiz
+    # self.quiz.total_marks = orm.sum(
+    #     ques.marks
+    #     for ques in Question
+    #     if ques.quiz == self.quiz and not ques.is_deleted
+    # )
 
-        # update total_marks of old quiz
-        old_question_quiz.total_marks = orm.sum(
-            ques.marks
-            for ques in Question
-            if ques.quiz == self.quiz and not ques.is_deleted
-        )
+    # # update total_marks of old quiz
+    # old_question_quiz.total_marks = orm.sum(
+    #     ques.marks
+    #     for ques in Question
+    #     if ques.quiz == self.quiz and not ques.is_deleted
+    # )
 
 
 class Option(db.Entity):
@@ -207,20 +215,42 @@ class Option(db.Entity):
     id = orm.PrimaryKey(int, auto=True)
     title = orm.Required(str)
     description = orm.Optional(str, default="")
-    image = orm.Optional(bytes)
-    question = orm.Required(Question)
+    _image = orm.Optional(bytes)
     is_deleted = orm.Required(bool, default=False)
     is_correct = orm.Required(bool, default=False)
     created_at = orm.Required(datetime, default=lambda: datetime.now())
-    user_answers = orm.Set("UserAnswer")
 
-    def get_encoded_image(self):
-        if self.image:
-            return b64encode(self.image).decode("utf-8")
+    user_answers = orm.Set("UserAnswer")
+    question = orm.Required(Question)
+
+    @property
+    def image(self):
+        if self._image:
+            return b64encode(self._image).decode("utf-8")
         return None
 
     def soft_delete(self):
         self.is_deleted = True
+
+    def after_insert(self):
+        self.update_question_type()
+        print("inside after_insert")
+
+    def after_update(self):
+        self.update_question_type()
+        print("inside after_update")
+
+    def update_question_type(self):
+        ques = self.question
+        correct_count = orm.sum(
+            opt.is_correct for opt in ques.options if not opt.is_deleted
+        )
+        print(correct_count)
+
+        if correct_count > 1:
+            ques._type = True
+        else:
+            ques._type = False
 
 
 class QuizAttempt(db.Entity):

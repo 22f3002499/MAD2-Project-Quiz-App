@@ -12,7 +12,11 @@
         <span class="ms-2">{{ store.currentQuestion.description }}</span>
       </div>
       <div v-if="store.currentQuestion?.image" class="mt-1">
-        <img :src="store.currentQuestion.image" alt="Image not found" />
+        <BImg
+          :src="`data:image/png;base64,${store.currentQuestion.image}`"
+          alt="Image not found"
+          fluid
+        />
       </div>
     </BContainer>
   </BCol>
@@ -35,9 +39,11 @@
             <div class="ms-2 me-auto">
               <div class="fw-bold">{{ option.title }}</div>
               {{ option?.description }}
-              <img
+
+              <BImg
+                fluid
                 v-if="option?.image"
-                :src="option?.image"
+                :src="`data:image/png;base64,${option?.image}`"
                 alt="No Image found"
               />
             </div>
@@ -54,9 +60,10 @@
             <div class="ms-2 me-auto">
               <div class="fw-bold">{{ option.title }}</div>
               {{ option?.description }}
-              <img
+              <BImg
+                fluid
                 v-if="option?.image"
-                :src="option?.image"
+                :src="`data:image/png;base64,${option?.image}`"
                 alt="No Image found"
               />
             </div>

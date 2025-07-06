@@ -25,7 +25,7 @@
             ><BButton
               variant="link-dark"
               class="fs-5 fw-bold"
-              @click="router.push({ name: 'adminSubjects' })"
+              @click="router.push({ name: 'userScores' })"
               >Scores</BButton
             ></BNavItem
           >

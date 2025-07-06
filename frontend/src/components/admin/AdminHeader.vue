@@ -19,6 +19,13 @@
               @click="router.push({ name: 'adminSubjects' })"
               >Subjects</BButton
             ></BNavItem
+          ><BNavItem class="px-0"
+            ><BButton
+              variant="link-dark"
+              class="fs-5 fw-bold"
+              @click="router.push({ name: 'adminQuizzes' })"
+              >Quizzes</BButton
+            ></BNavItem
           >
           <!-- VERTICAL DIVIDER -->
           <div class="vr mx-2 my-2"></div>

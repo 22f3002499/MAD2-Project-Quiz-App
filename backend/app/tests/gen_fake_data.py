@@ -123,7 +123,6 @@ def create_fake_quizzes(count=30):
         # Create quiz with valid duration and start time
         try:
             duration = random.randint(10, 120)  # 10 to 120 minutes
-            total_questions = random.randint(3, 20)  # 3 to 20 questions per quiz
             attempts_allowed = random.randint(1, 5)  # 1 to 5 attempts allowed
 
             # Start time must be in the future relative to creation time
@@ -139,9 +138,7 @@ def create_fake_quizzes(count=30):
                 is_deleted=fake.boolean(
                     chance_of_getting_true=5
                 ),  # 5% chance of being deleted
-                total_questions=total_questions,
                 attempts_allowed=attempts_allowed,
-                total_marks=0,  # Will be calculated automatically
             )
             quizzes.append(quiz)
         except Exception as e:
@@ -164,21 +161,10 @@ def create_fake_questions(count_per_quiz=5):
 
     for quiz in quizzes:
         # Determine how many questions to create for this quiz
-        if count_per_quiz:
-            num_questions = min(count_per_quiz, quiz.total_questions)
-        else:
-            # Create random number of questions up to quiz.total_questions
-            num_questions = random.randint(1, quiz.total_questions)
+        num_questions = random.randint(3, count_per_quiz)
 
         for _ in range(num_questions):
             try:
-                # Check if we've reached the limit
-                question_count = orm.count(
-                    q for q in Question if q.quiz == quiz and not q.is_deleted
-                )
-                if question_count >= quiz.total_questions:
-                    print(f"Quiz {quiz.id} has reached its question limit.")
-                    break
 
                 # Determine if MCQ or MSQ
                 is_msq = fake.boolean(chance_of_getting_true=30)  # 30% chance of MSQ
@@ -195,7 +181,7 @@ def create_fake_questions(count_per_quiz=5):
                     is_deleted=fake.boolean(
                         chance_of_getting_true=5
                     ),  # 5% chance of being deleted
-                    type=is_msq,  # False=MCQ, True=MSQ
+                    _type=is_msq,  # False=MCQ, True=MSQ
                     # No image for simplicity
                 )
 
@@ -220,7 +206,7 @@ def create_fake_options(question, count=4):
         is_correct = False
 
         # For MCQ, only one option is correct
-        if not question.type:  # MCQ
+        if question.type == "MCQ":  # MCQ
             is_correct = i == correct_option_index
         else:  # MSQ
             # For MSQ, randomly decide if an option is correct with a bias towards having multiple correct answers
@@ -388,6 +374,7 @@ def generate_fake_data():
         chapters = create_fake_chapters()
 
         orm.flush()
+        orm.commit()
         quizzes = create_fake_quizzes(50)
 
         # Commit transaction to ensure IDs are generated
@@ -395,7 +382,7 @@ def generate_fake_data():
 
         question_count = create_fake_questions()
 
-        # Commit transaction again
+        # # Commit transaction again
         orm.commit()
 
         attempt_count = create_fake_quiz_attempts()

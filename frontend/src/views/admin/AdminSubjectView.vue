@@ -5,8 +5,13 @@
     style="max-width: 70vw; max-height: 70vh"
     class="mt-4 overflow-y-scroll"
   >
+    <SearchBar
+      :items="subjectStore.allSubjects"
+      @update="handleSearchUpdate"
+      class="sticky-top"
+    />
     <BRow cols="2">
-      <BCol v-for="sub in subjectStore.allSubjects" class="mt-4">
+      <BCol v-for="sub in processedSubjects" class="mt-4">
         <BCard
           class="h-100"
           footer-bg-variant="light"
@@ -119,6 +124,7 @@ import ChapterCards from "@/components/admin/ChapterCards.vue";
 import ChapterForm from "@/components/admin/ChapterForm.vue";
 import FormModal from "@/components/FormModal.vue";
 import { subjectSchema, chapterSchema } from "@/utils/formSchemas";
+import SearchBar from "@/components/SearchBar.vue";
 
 const subjectStore = useSubjectStore();
 const chapterStore = useChapterStore();
@@ -134,5 +140,10 @@ const handleCreateChapterSubmit = async (formData) => {
 
 const handleEditSubjectSubmit = async (formData) => {
   await subjectStore.editSubject(currentSubjectId.value, formData);
+};
+
+const processedSubjects = ref([]);
+const handleSearchUpdate = (values) => {
+  processedSubjects.value = values;
 };
 </script>

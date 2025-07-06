@@ -1,13 +1,16 @@
 import { useApi } from "@/composables/useApi";
+import { useToast } from "@/composables/useToast";
 import { defineStore } from "pinia";
 import { ref } from "vue"; 
 
 export const useQuizStore = defineStore('quizStore' , () => {
-  const {get ,post} = useApi()
+  const {get ,post , put} = useApi()
   const delay = (ms) => new Promise(resolve => setTimeout(resolve , ms))
 
   const userQuizzes = ref([])
-  const sortedQuizzes = ref([])
+  const allQuizzes = ref([])
+
+  const toast = useToast()
 
   
   const getUserQuizzes = async () =>{
@@ -18,6 +21,15 @@ export const useQuizStore = defineStore('quizStore' , () => {
       // await delay(2000)
       // await getUserQuizzes()
     }    
+  }
+
+  const fetchAllQuizzes = async () => {
+    try{
+      const response = await get('/admin/quizzes/')
+      allQuizzes.value = response
+    } catch (err){
+      //
+    }
   }
 
 
@@ -31,42 +43,39 @@ export const useQuizStore = defineStore('quizStore' , () => {
     }
   }
 
-  const editQuiz = async (quizData) =>{
+  const editQuiz = async (quizId , quizData) =>{
     try{
-      const response = await post('/admin/edit/quiz/' , quizData)
-      await getUserQuizzes()
+      const response = await put(`/admin/edit/quiz/${quizId}/` , quizData)
+      await fetchAllQuizzes()
     } catch (err){
       // display toast notification if error 
     }
   }
 
-  const deleteQuiz = async (quizId) =>{
+  const removeQuiz = async (quizId) =>{
     try{
-      const response = await post(`/admin/edit/quiz/${quizId}` , {"is_deleted" : true})
-      await getUserQuizzes()
-    } catch (err){
-      // display toast notification if error 
+      const response = await put(`/admin/edit/quiz/${quizId}/` , {"is_deleted" : true})
+      toast.createSuccessToast(response?.message , "")
+    } catch (error){
+      toast.createErrorToast(error.code , JSON.stringify(error?.response?.data) || error?.message)
+    }
+  }
+
+  
+  const getQuizById = (quizId) => {
+    return allQuizzes.value.find((quiz) => quiz.id === quizId) || {}
+  }
+
+  const quizQuestionsAndOptions = ref(null)
+  async function getQuizQuestionsAndOptions(quizId) {
+    try{
+      const response = await get(`/admin/quiz/questions-and-options/${quizId}/`)
+      quizQuestionsAndOptions.value = response
+    } catch (error){
+      
     }
   }
   
-  const sortQuizzes = (key) => {
-    if (key.includes('time') || key.includes('date')){
-      sortedQuizzes.value = [...userQuizzes.value].sort((a , b) => {
-        return new Date(a.key) - new Date(b.key)
-      })
-    }
 
-    else if (key.includes('id') || key.includes('total') || key.includes('duration')){
-      sortedQuizzes.value = [...userQuizzes.value].sort((a,b) => {
-        return new Number(a.key) - new Number(b.key)
-      })
-    }
-
-    else {
-      sortedQuizzes.value = [...userQuizzes.value].sort()
-    }
-  }
-
-
-  return {userQuizzes , sortedQuizzes , addQuiz , editQuiz , deleteQuiz , sortQuizzes , getUserQuizzes}
+  return {userQuizzes ,allQuizzes,  addQuiz , editQuiz ,  removeQuiz ,  getUserQuizzes , fetchAllQuizzes , getQuizById , quizQuestionsAndOptions , getQuizQuestionsAndOptions}
 })

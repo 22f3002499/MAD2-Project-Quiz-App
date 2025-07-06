@@ -43,15 +43,13 @@ def verify_jwt_token():
     return None
 
 
-@admin_blueprint.get("/home/", defaults={"page_num": 1})
-@admin_blueprint.get("/home/<int:page_num>/")
+@admin_blueprint.get("/quizzes/")
 @orm.db_session
-def admin_home(page_num):
+def get_quizzes():
     results = []
     recent_quiz = orm.select(quiz for quiz in Quiz if not quiz.is_deleted).sort_by(
         Quiz.start_datetime
     )
-    recent_quiz = recent_quiz.page(page_num)
 
     for quiz in recent_quiz:
         quiz_data = {
@@ -59,12 +57,54 @@ def admin_home(page_num):
             "title": quiz.title,
             "description": quiz.description,
             "duration": quiz.duration,
-            "start_datetime": quiz.start_datetime,
+            "start_datetime": quiz.start_datetime.timestamp(),
             "total_questions": quiz.total_questions,
             "total_marks": quiz.total_marks,
-            "subject_title": quiz.subject.title,  # Access the subject title
+            "attempts_allowed": quiz.attempts_allowed,
+            "passing_percentage": quiz.passing_percentage,
+            "chapter": quiz.chapter.to_dict(only=["id", "title", "description"]),
+            "subject": quiz.chapter.subject.to_dict(
+                only=["id", "title", "description"]
+            ),
         }
         results.append(quiz_data)
+
+    return jsonify(results), 200
+
+
+@admin_blueprint.get("/quiz/questions-and-options/<int:quiz_id>/")
+@orm.db_session
+def get_quiz_questions_and_options(quiz_id: int):
+    results = []
+
+    quiz = Quiz.get(id=quiz_id)
+    quiz_questions = orm.select(ques for ques in quiz.questions if not ques.is_deleted)
+
+    for ques in quiz_questions:
+        ques_data = {
+            "id": ques.id,
+            "title": ques.title,
+            "description": ques.description,
+            "image": ques.image,
+            "marks": ques.marks,
+            "type": ques.type,
+        }
+        ques_data["options"] = []
+
+        for opt in ques.options:
+            if opt.is_deleted:
+                continue
+
+            opt_data = {
+                "id": opt.id,
+                "title": opt.title,
+                "description": opt.description,
+                "image": opt.image,
+                "is_correct": opt.is_correct,
+            }
+            ques_data["options"].append(opt_data)
+
+        results.append(ques_data)
 
     return jsonify(results), 200
 
@@ -95,7 +135,12 @@ def get_chapters(subject_id: int):
 @admin_blueprint.post("/create/<string:resource>/")
 @orm.db_session
 def create_resource(resource: str):
-    data = request.get_json()
+    has_files = bool(request.files)
+
+    if has_files:
+        data = dict(request.form)
+    else:
+        data = request.get_json()
 
     if resource == "quiz":
         subject_id = (
@@ -117,6 +162,30 @@ def create_resource(resource: str):
         )
         orm.flush()
 
+    elif resource == "option":
+        question_id = request.args.get("question_id")
+
+        if not Question.exists(id=question_id):
+            raise ResourceNotFoundException()
+
+        ques = Question.get(id=question_id)
+
+        if "_image" in request.files:
+            image_file = request.files["_image"]
+            if image_file and image_file.filename:
+                data["_image"] = image_file.read()
+            elif image_file.filename == "":
+                data["_image"] = None
+
+        new_option = Option(
+            title=data.get("title"),
+            description=data.get("description"),
+            _image=data.get("_image"),
+            is_correct=data.get("is_correct"),
+            question=ques,
+        )
+        orm.flush()
+
     return jsonify(f"new {resource} created"), 201
 
 
@@ -124,18 +193,19 @@ def create_resource(resource: str):
 @admin_blueprint.put("/edit/<string:resource>/<int:id>/")
 @orm.db_session
 def edit_resource(resource: str, id: int):
-    data = request.get_json()
+    has_files = bool(request.files)
+
+    if has_files:
+        data = dict(request.form)
+    else:
+        data = request.get_json()
 
     if resource == "quiz":
-        subject_found = False
-        quiz = Quiz.get(id=id)
-        for key in data.keys():
-            if "subject" in key:
-                subject_found = True
-                quiz.subject = Subject.get(id=data[key])
+        if not Quiz.exists(id=id):
+            raise ResourceNotFoundException()
 
-        if not subject_found:
-            quiz.set(**data)
+        quiz = Quiz.get(id=id)
+        quiz.set(**data)
 
     elif resource == "chapter":
         if not Chapter.exists(id=id):
@@ -150,6 +220,52 @@ def edit_resource(resource: str, id: int):
 
         subject = Subject.get(id=id)
         subject.set(**data)
+
+    elif resource == "quiz":
+        if not Quiz.exists(id=id):
+            raise ResourceNotFoundException()
+        if not Chapter.exists(id=data["chapter"]):
+            raise ResourceNotFoundException()
+
+        quiz = Quiz.get(id=id)
+        chapter = Chapter.get(id=data["chapter"])
+        new_data = {k: v for k, v in data.items() if k != "chapter"}
+        new_data["chapter"] = chapter
+
+        quiz.set(**new_data)
+
+    elif resource == "question":
+        if not Question.exists(id=id):
+            raise ResourceNotFoundException()
+
+        if "_image" in request.files:
+            image_file = request.files["_image"]
+            if image_file and image_file.filename:
+                data["_image"] = image_file.read()
+            elif image_file.filename == "":
+                data["_image"] = None
+
+        question = Question.get(id=id)
+
+        question.set(**data)
+
+    elif resource == "option":
+        if not Option.exists(id=id):
+            raise ResourceNotFoundException()
+
+        if "_image" in request.files:
+            image_file = request.files["_image"]
+            if image_file and image_file.filename:
+                data["_image"] = image_file.read()
+            elif image_file.filename == "":
+                data["_image"] = None
+
+        option = Option.get(id=id)
+
+        option.set(**data)
+
+        # if data.get("is_deleted"):
+        #     option.update_question_type()
 
     return jsonify({"message": f"Changed {resource}"}), 200
 

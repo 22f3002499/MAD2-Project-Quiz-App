@@ -11,6 +11,7 @@ const routes = [
 
   {name:"adminHome",path : "/admin/" , component : () => import('@/views/admin/HomeView.vue') , meta : {authRequired: true} , roles:['admin']},
   {name:"adminSubjects",path : "/admin/subjects/" , component : () => import('@/views/admin/AdminSubjectView.vue') , meta : {authRequired: true} , roles:['admin']},
+  {name:"adminQuizzes",path : "/admin/quizzes/" , component : () => import('@/views/admin/AdminQuizView.vue') , meta : {authRequired: true} , roles:['admin']},
 
   // {path : "/admin" , component : () => import('@/views/AdminView.vue') , meta : {authRequired: true , roles : ['admin']}},
 ]

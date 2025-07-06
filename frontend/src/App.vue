@@ -49,7 +49,7 @@ import { RouterView, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 
 import UserHeader from "@/components/UserHeader.vue";
-import AdminHeader from "./components/AdminHeader.vue";
+import AdminHeader from "@/components/admin/AdminHeader.vue";
 
 const auth = useAuthStore();
 const router = useRouter();
