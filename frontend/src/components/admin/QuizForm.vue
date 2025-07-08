@@ -67,6 +67,46 @@
     ></ErrorMessage>
   </div>
 
+  <!-- PASSING PERCENTAGE (missing from original template) -->
+  <div class="mb-3">
+    <div class="input-group">
+      <label for="passing_percentage" class="input-group-text fw-bold"
+        >Passing Percentage</label
+      >
+      <Field
+        name="passing_percentage"
+        class="form-control"
+        type="number"
+        id="passing_percentage"
+      ></Field>
+    </div>
+    <ErrorMessage
+      name="passing_percentage"
+      class="text-danger mt-1"
+    ></ErrorMessage>
+  </div>
+
+  <!-- SUBJECT SELECT -->
+  <div class="mb-3">
+    <div class="input-group">
+      <label for="subject" class="input-group-text fw-bold">Subject</label>
+      <Field
+        name="subject"
+        as="select"
+        class="form-select"
+        v-model="selectedSubject"
+      >
+        <option
+          v-for="subject in subjectStore.allSubjects"
+          :key="subject.id"
+          :value="subject.id"
+        >
+          {{ subject.title }}
+        </option>
+      </Field>
+    </div>
+    <ErrorMessage name="subject" class="text-danger mt-1"></ErrorMessage>
+  </div>
   <!-- CHAPTER SELECT -->
   <div class="mb-3">
     <div class="input-group">
@@ -87,13 +127,21 @@
 
 <script setup>
 import { useChapterStore } from "@/stores/dbChapterStore";
+import { useSubjectStore } from "@/stores/dbSubjectStore";
 import { ErrorMessage, Field } from "vee-validate";
-import { inject, onMounted, watch, watchEffect } from "vue";
+import { onMounted, ref, watch } from "vue";
 
-const currentSubjectId = inject("currentSubjectId");
+const subjectStore = useSubjectStore();
+const selectedSubject = ref();
+
+onMounted(async () => {
+  await subjectStore.fetchSubjects();
+});
+
 const chapterStore = useChapterStore();
-
-watch(currentSubjectId, (newVal) => {
-  chapterStore.fetchChapters(newVal);
+watch(selectedSubject, (newVal) => {
+  if (typeof newVal === "number") {
+    chapterStore.fetchChapters(newVal);
+  }
 });
 </script>

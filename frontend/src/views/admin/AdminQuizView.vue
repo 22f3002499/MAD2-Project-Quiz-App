@@ -4,11 +4,17 @@
     style="max-width: 70vw; max-height: 70vh"
     class="mt-4 overflow-y-scroll"
   >
-    <SearchBar
-      :items="quizStore.allQuizzes"
-      @update="handleSearchUpdate"
-      class="sticky-top"
-    />
+    <div class="d-flex sticky-top">
+      <SearchBar
+        :items="quizStore.allQuizzes"
+        @update="handleSearchUpdate"
+        class="flex-fill"
+      />
+      <BButton variant="success" class="ms-3" v-b-modal.create-quiz
+        ><i class="bi bi-plus-circle"></i
+        ><span class="ms-2">Quiz</span></BButton
+      >
+    </div>
     <BRow cols="2">
       <BCol v-for="quiz in processedQuizzes" class="mt-4">
         <BCard
@@ -150,9 +156,9 @@
                 class="me-2"
                 v-b-modal.view-questions-and-options
                 @click="
-                  () => {
+                  async () => {
                     currentQuiz = quiz;
-                    quizStore.getQuizQuestionsAndOptions(quiz.id);
+                    await quizStore.getQuizQuestionsAndOptions(currentQuizId);
                   }
                 "
                 >View Questions & Options</BButton
@@ -205,11 +211,22 @@
     <QuizQuestionsAndOptionsCRUD
       v-if="currentQuiz"
       :quizStarted="hasQuizStarted(currentQuiz?.start_datetime)"
+      :quizId="currentQuizId"
       @refetchQuestionsAndOptions="
         quizStore.getQuizQuestionsAndOptions(currentQuizId)
       "
     />
   </BModal>
+
+  <FormModal
+    id="create-quiz"
+    header-variant="primary"
+    title="Create Quiz"
+    @submit="handleCreateQuizSubmit"
+    :formSchema="quizSchema"
+  >
+    <QuizForm />
+  </FormModal>
 </template>
 
 <script setup>
@@ -225,10 +242,6 @@ const quizStore = useQuizStore();
 const processedQuizzes = ref([]);
 const currentQuiz = ref();
 const currentQuizId = computed(() => currentQuiz.value?.id || null);
-
-// provide this value for quizform to fetch chapters
-const currentSubjectId = computed(() => currentQuiz.value?.subject?.id || null);
-provide("currentSubjectId", currentSubjectId);
 
 const handleSearchUpdate = (values) => {
   processedQuizzes.value = values;
@@ -261,7 +274,11 @@ const hasQuizStarted = (quizStartDatetime) => {
 };
 
 const handleEditQuizSubmit = async (formData) => {
-  console.log(formData);
   await quizStore.editQuiz(currentQuizId.value, formData);
+};
+
+const handleCreateQuizSubmit = async (formData) => {
+  await quizStore.createQuiz(formData);
+  await quizStore.fetchAllQuizzes();
 };
 </script>

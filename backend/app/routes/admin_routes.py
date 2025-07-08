@@ -1,7 +1,6 @@
 from flask import Blueprint, request, g, jsonify
 from datetime import datetime
 from pony import orm
-from marshmallow import ValidationError
 
 from app.models.database import (
     Quiz,
@@ -143,18 +142,24 @@ def create_resource(resource: str):
         data = request.get_json()
 
     if resource == "quiz":
-        subject_id = (
-            data.get("subject") or data.get("subject_ids") or data.get("subjectIds")
-        )
-        quiz_data = {k: data[k] for k in data if "subject" not in k}
-        quiz_data["subject"] = Subject.get(id=subject_id)
-        new_quiz = Quiz(**quiz_data)
+        new_data = {k: v for k, v in data.items() if k not in ["chapter", "subject"]}
+
+        new_data["chapter"] = Chapter.get(id=data.get("chapter"))
+        new_quiz = Quiz(**new_data)
         orm.flush()
+
+    elif resource == "subject":
+        new_subject = Subject(
+            title=data.get("title"),
+            description=data.get("description"),
+        )
+        orm.flush()
+        new_subject.user.add(User.get(id=g.current_user.id))
 
     elif resource == "chapter":
         subject_id = request.args.get("subject_id")
         if not Subject.exists(id=subject_id):
-            raise ResourceNotFoundException()
+            raise ResourceNotFoundException(f"Subject with id: {subject_id} not found")
 
         sub = Subject.get(id=subject_id)
         new_chapter = Chapter(
@@ -162,11 +167,36 @@ def create_resource(resource: str):
         )
         orm.flush()
 
+    elif resource == "question":
+        quiz_id = request.args.get("quiz_id")
+        if not Quiz.exists(id=quiz_id):
+            raise ResourceNotFoundException(f"Quiz with id: {id} not found")
+
+        quiz = Quiz.get(id=quiz_id)
+
+        if "_image" in request.files:
+            image_file = request.files["_image"]
+            if image_file and image_file.filename:
+                data["_image"] = image_file.read()
+            elif image_file.filename == "":
+                data["_image"] = None
+
+        new_question = Question(
+            title=data.get("title"),
+            description=data.get("description"),
+            _image=data.get("_image"),
+            marks=data.get("marks"),
+            quiz=quiz,
+        )
+        orm.flush()
+
     elif resource == "option":
         question_id = request.args.get("question_id")
 
         if not Question.exists(id=question_id):
-            raise ResourceNotFoundException()
+            raise ResourceNotFoundException(
+                f"Question with id: {question_id} not found"
+            )
 
         ques = Question.get(id=question_id)
 
@@ -200,43 +230,37 @@ def edit_resource(resource: str, id: int):
     else:
         data = request.get_json()
 
-    if resource == "quiz":
-        if not Quiz.exists(id=id):
-            raise ResourceNotFoundException()
-
-        quiz = Quiz.get(id=id)
-        quiz.set(**data)
-
-    elif resource == "chapter":
+    if resource == "chapter":
         if not Chapter.exists(id=id):
-            raise ResourceNotFoundException()
+            raise ResourceNotFoundException(f"Chapter with id: {id} not found")
 
         chapter = Chapter.get(id=id)
         chapter.set(**data)
 
     elif resource == "subject":
         if not Subject.exists(id=id):
-            raise ResourceNotFoundException()
+            raise ResourceNotFoundException(f"Subject with id: {id} not found")
 
         subject = Subject.get(id=id)
         subject.set(**data)
 
     elif resource == "quiz":
         if not Quiz.exists(id=id):
-            raise ResourceNotFoundException()
+            raise ResourceNotFoundException(f"Quiz with id: {id} not found")
         if not Chapter.exists(id=data["chapter"]):
-            raise ResourceNotFoundException()
+            raise ResourceNotFoundException(
+                f"Chapter with id: {id} for the quiz not found"
+            )
 
         quiz = Quiz.get(id=id)
-        chapter = Chapter.get(id=data["chapter"])
-        new_data = {k: v for k, v in data.items() if k != "chapter"}
-        new_data["chapter"] = chapter
+        new_data = {k: v for k, v in data.items() if k not in ["chapter", "subject"]}
+        new_data["chapter"] = Chapter.get(id=data.get("chapter"))
 
         quiz.set(**new_data)
 
     elif resource == "question":
         if not Question.exists(id=id):
-            raise ResourceNotFoundException()
+            raise ResourceNotFoundException(f"Question with id: {id} not found")
 
         if "_image" in request.files:
             image_file = request.files["_image"]
@@ -251,7 +275,7 @@ def edit_resource(resource: str, id: int):
 
     elif resource == "option":
         if not Option.exists(id=id):
-            raise ResourceNotFoundException()
+            raise ResourceNotFoundException(f"Option with id: {id} not found")
 
         if "_image" in request.files:
             image_file = request.files["_image"]
@@ -263,9 +287,6 @@ def edit_resource(resource: str, id: int):
         option = Option.get(id=id)
 
         option.set(**data)
-
-        # if data.get("is_deleted"):
-        #     option.update_question_type()
 
     return jsonify({"message": f"Changed {resource}"}), 200
 
@@ -310,3 +331,24 @@ def stats(quiz_id: int):
     }
 
     return jsonify(quiz_info, quiz_stats), 200
+
+
+@admin_blueprint.get("/test/<int:id>")
+@orm.db_session
+def testing_route(id: int):
+    return jsonify("yayy"), 200
+
+
+@admin_blueprint.errorhandler(AttributeError)
+def handle_attribute_error(e: AttributeError):
+    return jsonify(str(e)), 404
+
+
+# @admin_blueprint.errorhandler(APIException)
+# def handle_auth_error(e: APIException):
+#     return jsonify(e.to_dict()), e.status_code
+
+
+# @admin_blueprint.errorhandler(orm.RowNotFound)
+# def handle_row_not_found(e):
+#     return jsonify(e), 404

@@ -61,6 +61,9 @@ watch(
           : null,
         // set chapter to just id
         chapter: newData.chapter?.id ? newData.chapter?.id : null,
+
+        // set subject to just id
+        subject: newData.subject?.id ? newData.subject?.id : null,
       };
       formRef.value.setValues(processedNewData);
     }

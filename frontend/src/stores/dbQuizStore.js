@@ -33,10 +33,9 @@ export const useQuizStore = defineStore('quizStore' , () => {
   }
 
 
-  const addQuiz = async (quizData) => {
+  const createQuiz = async (quizData) => {
     try{
       const response = await post('/admin/create/quiz/' , quizData)
-      await getUserQuizzes()
     } catch (err){
       // display toast notification if error
       
@@ -77,5 +76,5 @@ export const useQuizStore = defineStore('quizStore' , () => {
   }
   
 
-  return {userQuizzes ,allQuizzes,  addQuiz , editQuiz ,  removeQuiz ,  getUserQuizzes , fetchAllQuizzes , getQuizById , quizQuestionsAndOptions , getQuizQuestionsAndOptions}
+  return {userQuizzes ,allQuizzes,  createQuiz , editQuiz ,  removeQuiz ,  getUserQuizzes , fetchAllQuizzes , getQuizById , quizQuestionsAndOptions , getQuizQuestionsAndOptions}
 })

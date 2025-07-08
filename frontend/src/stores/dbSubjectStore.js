@@ -25,12 +25,11 @@ export const useSubjectStore = defineStore('subjectStore', () => {
     }
   }
 
-  const addSubject = async (subjectDetails) =>{
+  const createSubject = async (formData) =>{
     try{
-      const response = await post('/admin/create/subject/' , subjectDetails)
-      await fetchSubjects()
-    }catch (err){
-      console.log(err || response.data?.message || response.message || response)
+      const response = await post('/admin/create/subject/' , formData)
+    }catch (error){
+      toast.createErrorToast(error.code , JSON.stringify(error?.response?.data) || error?.message)
     }
   }
   
@@ -38,7 +37,7 @@ export const useSubjectStore = defineStore('subjectStore', () => {
     try{
       const response = await put(`/admin/edit/subject/${subjectId}/` , newData)
       await fetchSubjects()
-    } catch (err){
+    } catch (error){
       toast.createErrorToast(error.code , JSON.stringify(error?.response?.data) || error?.message)
     }
   }
@@ -57,7 +56,7 @@ export const useSubjectStore = defineStore('subjectStore', () => {
 
 
 
-  return {allSubjects, fetchSubjects , addSubject , removeSubject ,editSubject , getSubjectById}
+  return {allSubjects, fetchSubjects , createSubject , removeSubject ,editSubject , getSubjectById}
 })
 
 

@@ -5,11 +5,17 @@
     style="max-width: 70vw; max-height: 70vh"
     class="mt-4 overflow-y-scroll"
   >
-    <SearchBar
-      :items="subjectStore.allSubjects"
-      @update="handleSearchUpdate"
-      class="sticky-top"
-    />
+    <div class="d-flex sticky-top">
+      <SearchBar
+        :items="subjectStore.allSubjects"
+        @update="handleSearchUpdate"
+        class="flex-fill"
+      />
+      <BButton variant="success" class="ms-3" v-b-modal.create-subject
+        ><i class="bi bi-plus-circle"></i
+        ><span class="ms-2">Subject</span></BButton
+      >
+    </div>
     <BRow cols="2">
       <BCol v-for="sub in processedSubjects" class="mt-4">
         <BCard
@@ -113,6 +119,16 @@
   >
     <SubjectForm />
   </FormModal>
+
+  <FormModal
+    id="create-subject"
+    title="Create Subject"
+    header-variant="primary"
+    @submit="handleCreateSubjectSubmit"
+    :formSchema="subjectSchema"
+  >
+    <SubjectForm />
+  </FormModal>
 </template>
 
 <script setup>
@@ -140,6 +156,11 @@ const handleCreateChapterSubmit = async (formData) => {
 
 const handleEditSubjectSubmit = async (formData) => {
   await subjectStore.editSubject(currentSubjectId.value, formData);
+};
+
+const handleCreateSubjectSubmit = async (formData) => {
+  await subjectStore.createSubject(formData);
+  await subjectStore.fetchSubjects();
 };
 
 const processedSubjects = ref([]);

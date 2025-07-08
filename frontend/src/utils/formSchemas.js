@@ -25,6 +25,7 @@ export const quizSchema = computed(() => {
     passing_percentage:yup.number().min(20).max(80).required("Passing Percentage is required"),
     attempts_allowed:yup.number().min(1).required("Number of Attempts Allowed is required"),
     chapter:yup.number().required("Chapter is required"),
+    subject:yup.number().required("Subject is required"),
   })
 })
 

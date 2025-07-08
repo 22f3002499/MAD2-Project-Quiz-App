@@ -1,6 +1,16 @@
 <template>
+  <div class="d-flex mb-2">
+    <BButton
+      variant="success"
+      class="ms-auto"
+      v-b-modal.create-question
+      :disabled="props.quizStarted"
+      ><i class="bi bi-plus-circle"></i
+      ><span class="ms-2">Question</span></BButton
+    >
+  </div>
   <BCard
-    v-for="(ques, index) in quizStore.quizQuestionsAndOptions"
+    v-for="ques in quizStore.quizQuestionsAndOptions"
     header-bg-variant="light-subtle"
     class="mb-5"
   >
@@ -158,12 +168,22 @@
   >
     <OptionForm />
   </FormModal>
+
+  <FormModal
+    id="create-question"
+    title="Create Question"
+    header-variant="primary"
+    @submit="handleCreateQuestionSubmit"
+    :formSchema="questionSchema"
+  >
+    <QuestionForm />
+  </FormModal>
 </template>
 
 <script setup>
 import { useQuestionStore } from "@/stores/dbQuestionStore";
 import { useQuizStore } from "@/stores/dbQuizStore";
-import { computed, ref } from "vue";
+import { computed, onBeforeMount, ref } from "vue";
 
 import FormModal from "../FormModal.vue";
 import { questionSchema, optionSchema } from "@/utils/formSchemas";
@@ -182,6 +202,9 @@ const props = defineProps({
   quizStarted: {
     type: Boolean,
     required: true,
+  },
+  quizId: {
+    type: Number,
   },
 });
 
@@ -222,5 +245,9 @@ const handleEditOptionSubmit = async (formData) => {
 const handleCreateOptionSubmit = async (formData) => {
   await optionStore.createOption(currentQuestionId.value, formData);
   emit("refetchQuestionsAndOptions");
+};
+
+const handleCreateQuestionSubmit = async (formData) => {
+  questionStore.createQuestion(props.quizId, formData);
 };
 </script>

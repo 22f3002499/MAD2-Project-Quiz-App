@@ -1,7 +1,6 @@
 from flask import Blueprint, request, g, jsonify, make_response
 from datetime import datetime
 from pony import orm
-from marshmallow import ValidationError
 import json
 
 from app.models.database import (
