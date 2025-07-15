@@ -2,6 +2,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from pony import orm
 from flask import Blueprint, request, jsonify
 from marshmallow import ValidationError
+from datetime import datetime
 
 from app.models.database import User, Subject
 from app.routes.exceptions import APIException, AuthenticationException
@@ -49,6 +50,7 @@ def login_user():
     if not user or not check_password_hash(user.password, login_data["password"]):
         raise AuthenticationException("Incorrect username or password")
 
+    user.last_login = datetime.now()
     token = generate_jwt_token(
         {
             "user_id": user.id,

@@ -263,6 +263,7 @@ class QuizAttempt(db.Entity):
     submit_datetime = orm.Required(datetime, default=datetime.now())
     is_deleted = orm.Required(bool, default=False)
     created_at = orm.Required(datetime, default=lambda: datetime.now())
+
     user_answers = orm.Set("UserAnswer")
 
     def soft_delete(self):

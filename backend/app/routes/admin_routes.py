@@ -1,5 +1,5 @@
 from flask import Blueprint, request, g, jsonify
-from datetime import datetime
+from datetime import datetime, timedelta
 from pony import orm
 
 from app.models.database import (
@@ -291,52 +291,156 @@ def edit_resource(resource: str, id: int):
     return jsonify({"message": f"Changed {resource}"}), 200
 
 
-# sends a pair of dicts ; quiz_info and quiz_stats as list
-@admin_blueprint.get("/stats/quiz/<int:quiz_id>/")
+@admin_blueprint.get("/dashboard/")
 @orm.db_session
-def stats(quiz_id: int):
-    quiz: Quiz = Quiz.get(id=quiz_id)
+def get_dashboard_stats():
 
-    quiz_info = {
-        "id": quiz.id,
-        "title": quiz.title,
-        "description": quiz.description,
-        "duration": quiz.duration,
-        "start_datetime": quiz.start_datetime,
-        "total_questions": quiz.total_questions,
-        "total_marks": quiz.total_marks,
-        "attempts_allowed": quiz.attempts_allowed,
-        "subject_title": quiz.subject.title,  # Access the subject title
-    }
-
-    active_quiz_attempts = orm.select(
-        qa for qa in QuizAttempt if qa.quiz == quiz and not qa.is_deleted
-    )
-    quiz_stats = {
-        "total_attempts": orm.count(active_quiz_attempts) or 0,
-        "unique_users_attempted": orm.distinct(qa.user for qa in active_quiz_attempts)
-        or 0,
-        "average_score": orm.avg(qa.score for qa in active_quiz_attempts),
-        "average_percentage_score": orm.avg(
-            qa.percentage_score for qa in active_quiz_attempts
-        )
-        or 0,
-        "highest_score": orm.max(qa.score for qa in active_quiz_attempts) or 0,
-        "lowest_score": orm.min(qa.score for qa in active_quiz_attempts) or 0,
-        "pass_rate": orm.count(
-            qa.percentage_score
-            for qa in active_quiz_attempts
-            if qa.score > qa.quiz.passing_percentage
+    stats = {
+        "total_users": orm.count(
+            user for user in User if not user.is_deleted and not user.is_admin
         ),
+        "total_quizzes": orm.count(quiz for quiz in Quiz if not quiz.is_deleted),
+        "total_quiz_attempts": orm.count(qa for qa in QuizAttempt if not qa.is_deleted),
+        "total_subjects": orm.count(sub for sub in Subject if not sub.is_deleted),
+        "average_quiz_score": orm.avg(
+            qa.percentage_score for qa in QuizAttempt if not qa.is_deleted
+        )
+        * 100,
+        "active_users_today": orm.count(
+            user
+            for user in User
+            if user.last_login.date() == datetime.now().date()
+            and not user.is_deleted
+            and not user.is_admin
+        ),
+        "average_pass_rate": (
+            orm.count(
+                qa
+                for qa in QuizAttempt
+                if not qa.is_deleted
+                and qa.percentage_score >= qa.quiz.passing_percentage
+            )
+            / orm.count(qa for qa in QuizAttempt if not qa.is_deleted)
+        )
+        * 100,
     }
+    ## PENDING QUIZZES
+    quizzes_today = orm.select(
+        quiz for quiz in Quiz if quiz.start_datetime == datetime.today()
+    )
+    pending_quizzes_count = 0
+    for quiz in quizzes_today:
+        attempt_count = orm.count(
+            qa for qa in QuizAttempt if qa.quiz == quiz and not qa.is_deleted
+        )
+        if attempt_count == 0:
+            pending_quizzes_count += 1
 
-    return jsonify(quiz_info, quiz_stats), 200
+    if quizzes_today:
+        stats["pending_quizzes_today"] = (
+            pending_quizzes_count / len(quizzes_today) * 100
+        )
+    else:
+        stats["pending_quizzes_today"] = 0
 
+    ## TOP PERFORMERS
+    performers = []
 
-@admin_blueprint.get("/test/<int:id>")
-@orm.db_session
-def testing_route(id: int):
-    return jsonify("yayy"), 200
+    users_with_attempts = orm.select(
+        qa.user for qa in QuizAttempt if not qa.is_deleted and not qa.user.is_deleted
+    ).distinct()
+
+    for user in users_with_attempts:
+        user_attempts = orm.select(
+            qa for qa in QuizAttempt if qa.user == user and not qa.is_deleted
+        )
+
+        total_attempts = orm.count(user_attempts)
+        avg_score = orm.avg(qa.percentage_score for qa in user_attempts)
+
+        passed_attempts = orm.count(
+            qa
+            for qa in user_attempts
+            if qa.percentage_score >= qa.quiz.passing_percentage
+        )
+        pass_rate = (
+            (passed_attempts / total_attempts) * 100 if total_attempts > 0 else 0
+        )
+        unique_quizzes = orm.count(
+            orm.select(qa.quiz for qa in user_attempts).distinct()
+        )
+
+        performer_data = {
+            "id": user.id,
+            "username": user.username,
+            "average_percentage_score": round(avg_score, 2),
+            "pass_rate": round(pass_rate, 2),
+            "unique_quizzes_attempted": unique_quizzes,
+        }
+
+        performers.append(performer_data)
+
+    performers.sort(key=lambda x: x["average_percentage_score"], reverse=True)
+
+    for i, performer in enumerate(performers):
+        performer["rank"] = i + 1
+
+    stats["top_performers"] = performers[:50]
+
+    ## SUBJECT STATS
+
+    subject_stats = []
+
+    subjects = orm.select(s for s in Subject if not s.is_deleted).order_by(
+        Subject.title
+    )
+
+    for subject in subjects:
+        quizzes = orm.select(
+            q
+            for c in subject.chapters
+            for q in c.quizzes
+            if not c.is_deleted and not q.is_deleted
+        )
+
+        total_quizzes = orm.count(quizzes)
+
+        quiz_attempts = orm.select(
+            qa
+            for c in subject.chapters
+            for q in c.quizzes
+            for qa in q.quiz_attempts
+            if not c.is_deleted and not q.is_deleted and not qa.is_deleted
+        )
+
+        attempts_list = list(quiz_attempts)
+        if attempts_list:
+            average_percentage_score = round(
+                sum(qa.percentage_score for qa in attempts_list) / len(attempts_list), 2
+            )
+
+            passed_attempts = sum(
+                1
+                for qa in attempts_list
+                if qa.percentage_score >= qa.quiz.passing_percentage
+            )
+            pass_rate = round((passed_attempts * 100.0) / len(attempts_list), 2)
+        else:
+            average_percentage_score = 0
+            pass_rate = 0
+
+        subject_stats.append(
+            {
+                "subject_name": subject.title,
+                "total_quizzes": total_quizzes,
+                "average_percentage_score": average_percentage_score,
+                "pass_rate": pass_rate,
+            }
+        )
+
+    stats["subject_performance"] = subject_stats
+
+    return jsonify(stats), 200
 
 
 @admin_blueprint.errorhandler(AttributeError)
@@ -344,9 +448,9 @@ def handle_attribute_error(e: AttributeError):
     return jsonify(str(e)), 404
 
 
-# @admin_blueprint.errorhandler(APIException)
-# def handle_auth_error(e: APIException):
-#     return jsonify(e.to_dict()), e.status_code
+@admin_blueprint.errorhandler(APIException)
+def handle_auth_error(e: APIException):
+    return jsonify(e.to_dict()), e.status_code
 
 
 # @admin_blueprint.errorhandler(orm.RowNotFound)
