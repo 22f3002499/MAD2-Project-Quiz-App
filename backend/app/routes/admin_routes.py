@@ -25,6 +25,8 @@ from app.utils import (
     get_user_by_token,
 )
 
+from app.cache import app_cache
+
 admin_blueprint = Blueprint("admin_blueprint", __name__, url_prefix="/admin")
 
 
@@ -146,6 +148,7 @@ def create_resource(resource: str):
 
         new_data["chapter"] = Chapter.get(id=data.get("chapter"))
         new_quiz = Quiz(**new_data)
+
         orm.flush()
 
     elif resource == "subject":
@@ -216,6 +219,7 @@ def create_resource(resource: str):
         )
         orm.flush()
 
+    app_cache.clear()
     return jsonify(f"new {resource} created"), 201
 
 
@@ -288,6 +292,7 @@ def edit_resource(resource: str, id: int):
 
         option.set(**data)
 
+    app_cache.clear()
     return jsonify({"message": f"Changed {resource}"}), 200
 
 

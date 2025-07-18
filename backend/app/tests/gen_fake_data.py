@@ -369,7 +369,7 @@ def generate_fake_data():
 
     with orm.db_session:
         # Create fake data
-        users = create_fake_users(15)
+        users = create_fake_users(50)
         subjects = create_fake_subjects(30)
         chapters = create_fake_chapters()
 

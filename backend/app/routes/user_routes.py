@@ -24,6 +24,8 @@ from app.utils import (
     get_user_by_token,
 )
 
+from app.cache import app_cache
+
 user_blueprint = Blueprint("user_blueprint", __name__, url_prefix="/user")
 
 
@@ -45,6 +47,7 @@ def verify_jwt_token():
 
 
 @user_blueprint.get("/quiz/")
+@app_cache.cached(key_prefix="user_quiz")
 @orm.db_session
 def user_quiz():
     results = []
@@ -59,6 +62,7 @@ def user_quiz():
         for quiz in Quiz
         if (quiz.chapter in user_chapters) and quiz.start_datetime > datetime.now()
     ).sort_by(Quiz.start_datetime)
+    print(user_chapters[:], user_quizzes[:])
 
     for quiz in user_quizzes:
         quiz_data = {
@@ -78,6 +82,7 @@ def user_quiz():
 
 
 @user_blueprint.get("/scores/")
+@app_cache.cached(key_prefix="user_scores")
 @orm.db_session
 def user_scores():
 
@@ -105,6 +110,7 @@ def user_scores():
 
 # PENDING
 @user_blueprint.get("/review-answers/<int:quiz_attempt_id>/")
+@app_cache.cached(key_prefix="user_review_answers")
 @orm.db_session
 def review_answers(quiz_attempt_id: int):
     if not QuizAttempt.exists(id=quiz_attempt_id):
@@ -139,8 +145,8 @@ def review_answers(quiz_attempt_id: int):
             "id": ques.id,
             "title": ques.title,
             "description": ques.description,
-            "image": ques.get_encoded_image(),
-            "type": ques.get_type(),
+            "image": ques.image,
+            "type": ques.type,
             "marks": ques.marks,
             "options": [],
         }
@@ -150,7 +156,7 @@ def review_answers(quiz_attempt_id: int):
                 "id": option.id,
                 "title": option.title,
                 "description": option.description,
-                "image": option.get_encoded_image(),
+                "image": option.image,
                 "is_correct": option.is_correct,
             }
             ques_data["options"] += [option_data]
@@ -205,8 +211,8 @@ def user_start_quiz(quiz_id: int):
             "id": ques.id,
             "title": ques.title,
             "description": ques.description,
-            "image": ques.get_encoded_image(),
-            "type": ques.get_type(),
+            "image": ques.image,
+            "type": ques.type,
             "options": [],
         }
 
@@ -215,7 +221,7 @@ def user_start_quiz(quiz_id: int):
                 "id": option.id,
                 "title": option.title,
                 "description": option.description,
-                "image": option.get_encoded_image(),
+                "image": option.image,
             }
             ques_data["options"] += [option_data]
 
@@ -261,6 +267,7 @@ def user_submit_quiz(quiz_id: int):
 
 
 @user_blueprint.get("/stats/")
+@app_cache.cached(key_prefix="user_stats")
 @orm.db_session
 def user_stats():
     quiz_attempts = orm.select(
@@ -361,16 +368,11 @@ def user_stats():
 
 
 # ERROR HANDLING
-# @user_blueprint.errorhandler(ValidationError)
-# def handle_validation_error(e):
-#     return jsonify(str(e)), 400
+@user_blueprint.errorhandler(TypeError)
+def handle_typerror(e):
+    return jsonify(str(e)), 400
 
 
-# @user_blueprint.errorhandler(TypeError)
-# def handle_typerror(e):
-#     return jsonify(str(e)), 400
-
-
-# @user_blueprint.errorhandler(APIException)
-# def handle_auth_error(e: APIException):
-#     return jsonify(e.to_dict()), e.status_code
+@user_blueprint.errorhandler(APIException)
+def handle_auth_error(e: APIException):
+    return jsonify(e.to_dict()), e.status_code

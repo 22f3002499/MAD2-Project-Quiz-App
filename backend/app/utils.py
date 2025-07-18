@@ -84,3 +84,7 @@ def get_token_from_header(request_headers: dict) -> str:
         raise JWTTokenException("jwt token not found in authorization headers")
 
     return token
+
+
+def generate_monthly_mail():
+    pass

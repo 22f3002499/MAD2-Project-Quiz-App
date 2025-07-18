@@ -234,18 +234,15 @@ class Option(db.Entity):
 
     def after_insert(self):
         self.update_question_type()
-        print("inside after_insert")
 
     def after_update(self):
         self.update_question_type()
-        print("inside after_update")
 
     def update_question_type(self):
         ques = self.question
         correct_count = orm.sum(
             opt.is_correct for opt in ques.options if not opt.is_deleted
         )
-        print(correct_count)
 
         if correct_count > 1:
             ques._type = True

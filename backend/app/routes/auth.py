@@ -7,6 +7,7 @@ from datetime import datetime
 from app.models.database import User, Subject
 from app.routes.exceptions import APIException, AuthenticationException
 from app.utils import refresh_jwt_token, generate_jwt_token, get_token_from_header
+from app.cache import app_cache
 
 auth_blueprint = Blueprint(
     name="auth_blueprint", import_name=__name__, url_prefix="/auth"
@@ -59,6 +60,7 @@ def login_user():
         }
     )
 
+    app_cache.clear()
     return jsonify(token), 200
 
 
