@@ -1,7 +1,10 @@
 from celery import Celery
 from celery.schedules import crontab
 import os
+from flask import current_app
 from dotenv import load_dotenv, find_dotenv
+
+from app import create_app
 
 ENV_FILE = find_dotenv(r".env")
 load_dotenv(ENV_FILE)
@@ -34,7 +37,7 @@ def make_celery(app):
             },
             "monthly-performance-report": {
                 "task": "app.celery_tasks.send_monthly_performance_report",
-                "schedule": {"hour": 5, "minute": 0, "day_of_month": 1},
+                "schedule": crontab(hour=5, minute=0, day_of_month=1),
             },
         },
         "beat_schedule_filename": "celerybeat-schedule",
@@ -58,3 +61,7 @@ def make_celery(app):
 
     celery.Task = ContextTask
     return celery
+
+
+flask_app = create_app()
+CELERY = make_celery(flask_app)

@@ -1,14 +1,14 @@
-from app import CELERY
 from pony import orm
 from datetime import datetime, timedelta
 import time
 
 from app.mail_service import (
     send_reminder_mail,
+    generate_quiz_stats_csv,
     generate_and_send_monthly_report,
-    get_quiz_stats_csv,
 )
 from app.models.database import User, Quiz, Subject, Chapter
+from app.celery_service import CELERY
 
 
 @CELERY.task
@@ -62,5 +62,5 @@ def send_monthly_performance_report():
 
 @CELERY.task
 def send_monthly_csv_report(user_id):
-    get_quiz_stats_csv(user_id)
+    generate_quiz_stats_csv(user_id)
     return "Mails sent"

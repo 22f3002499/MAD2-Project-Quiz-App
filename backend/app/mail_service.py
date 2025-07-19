@@ -400,7 +400,7 @@ def generate_quiz_stats_csv(user_id, output_path=None):
         for row in stats_data:
             writer.writerow(row)
 
-    send_quiz_stats_email(output_path, user_email, stats_data)
+    send_quiz_stats_email(output_path, user.email, stats_data)
 
 
 def send_quiz_stats_email(csv_path, user_email, stats_data):

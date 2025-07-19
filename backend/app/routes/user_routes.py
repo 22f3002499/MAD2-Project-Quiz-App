@@ -367,6 +367,15 @@ def user_stats():
     )
 
 
+@user_blueprint.get("/monthly-report/")
+def trigger_monthly_report():
+    from app.celery_tasks import send_monthly_csv_report
+
+    current_user_id = g.current_user.id
+    send_monthly_csv_report(current_user_id)
+    return jsonify({"message": "You will recieve the report shortly"})
+
+
 # ERROR HANDLING
 @user_blueprint.errorhandler(TypeError)
 def handle_typerror(e):
