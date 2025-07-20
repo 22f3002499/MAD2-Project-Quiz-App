@@ -373,6 +373,18 @@ def create_default_subjects():
             orm.commit()
 
 
+def create_default_admin():
+    with orm.db_sesson:
+        new_admin = User(
+            email="admin@mail.com",
+            username="admin123",
+            password="admin123",
+            is_admin=True,
+        )
+
+        orm.commit()
+
+
 def init_db():
     base_dir = os.path.dirname(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -384,3 +396,4 @@ def init_db():
     db.generate_mapping(create_tables=True)
 
     create_default_subjects()
+    create_default_admin()
